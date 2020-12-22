@@ -19,6 +19,7 @@ import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contr
 import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/EnumerableSet.sol";
 */
 
+
 contract Token is ERC20("Lucky Bet", "LBT"), AccessControl {
     using SafeMath for uint256;
 
@@ -30,6 +31,7 @@ contract Token is ERC20("Lucky Bet", "LBT"), AccessControl {
     address internal _owner = 0xdD870fA1b7C4700F2BD7f44238821C26f7392148;
     address payable internal _contractOwner;
     uint256 internal _teamFund = 0;
+    address test = 0xdD870fA1b7C4700F2BD7f44238821C26f7392148;
     
     uint256 moderatorPercent = 100; // 2%
     uint256 teamPercent = 100; // 1%
@@ -38,28 +40,29 @@ contract Token is ERC20("Lucky Bet", "LBT"), AccessControl {
     // 300 point range
     uint256 smallBetSmallWin = 7000; // 70%
     uint256 smallBetMediumWin = 9000; // 90%
-    uint256 smallBetBigWin = 14000; // 140%
+    uint256 smallBetBigWin = 20000; // 2%
         
     // 200 point range
     uint256 mediumBetSmallWin = 5000; // 50%
     uint256 mediumBetMediumWin = 8000; // 80%
-    uint256 mediumBetBigWin = 20000; // 200%
+    uint256 mediumBetBigWin = 30000; // 300%
         
     // 100 point range
     uint256 largeBetSmallWin = 3000; // 30%
     uint256 largeBetMediumWin = 7000; // 70%
-    uint256 largeBetBigWin = 30000; // 300%
+    uint256 largeBetBigWin = 40000; // 400%
 
     uint256 private _sessionsIds;
     
     mapping(address => gameData) addressGameHistory;
     mapping(uint256 => gameData) sessionGameHistory;
+    mapping (address => uint256) balances;
     
     struct gameData { 
         address account;
         uint256 session;
         uint256 amount;
-        uint256 reward;
+        uint256 takeHome;
         uint256 loss;
         uint256 teamFee;
         uint256 luckyNumber;
@@ -82,8 +85,8 @@ contract Token is ERC20("Lucky Bet", "LBT"), AccessControl {
         transfer(account, amount);
     }
     
-    function transferProfit(uint256 amount) public payable{
-        transferFrom(_contractOwner, address(this), amount);
+    function transferProfit(uint256 amount) internal {
+        _mint(msg.sender, amount);
         
     }
 
@@ -98,7 +101,7 @@ contract Token is ERC20("Lucky Bet", "LBT"), AccessControl {
     function luckyBet(uint256 amount) public payable{
         require(amount >= 2, "Cannot stake less than 2 LBT");
         require(amount <= 100, "Cannot stake more than 100 LBT");
-        
+        _burn(msg.sender, amount);
         _sessionsIds = _sessionsIds.add(1);
         
         uint256 sessionId = _sessionsIds;
@@ -110,7 +113,7 @@ contract Token is ERC20("Lucky Bet", "LBT"), AccessControl {
         uint256 profit;
         uint256 moderatorCut;
         uint256 ownerCut;
-        //uint256 teamCut;
+        //uint256 tokenCut;
         uint256 feeAfterCuts;
 
         
@@ -122,15 +125,36 @@ contract Token is ERC20("Lucky Bet", "LBT"), AccessControl {
             if(luckyNumber >= 900 || luckyNumber <= 100 ){
                 reward = amount.mul(smallBetBigWin).div(10000);
                 loss = 0;
-                profit = reward.sub(amount);
+                profit = reward.mul(2);
             }else if (luckyNumber >= 800 || luckyNumber <= 200){
                 reward = amount.mul(smallBetMediumWin).div(10000);
                 loss = amount.sub(reward);
-                profit = 0;
+                
+                profit = amount.sub(reward);
+                _mint(msg.sender, profit);
+                _mint(_contractOwner, loss);
             }else if(luckyNumber >= 700 || luckyNumber <= 600){
                 reward = amount.mul(smallBetSmallWin).div(10000);
                 loss = amount.sub(reward);
+                
+                profit = amount.sub(reward);
+                _mint(msg.sender, profit);
+                _mint(_contractOwner, loss);
+            }else if(luckyNumber < 700 && luckyNumber > 600){
+                reward = 0;
+                loss = amount;
                 profit = 0;
+                
+                moderatorCut = loss.mul(moderatorPercent).div(10000);
+            
+                ownerCut = loss.mul(ownersPercent).div(10000);
+        
+                totalFees = moderatorCut.add(ownerCut);
+                feeAfterCuts = loss.sub(totalFees);
+        
+                _mint(_moderator, moderatorCut);
+                _mint(_owner, ownerCut);
+                _mint(_contractOwner, feeAfterCuts);
             }
         }
         
@@ -142,12 +166,36 @@ contract Token is ERC20("Lucky Bet", "LBT"), AccessControl {
             if(luckyNumber >= 900 || luckyNumber <= 100 ){
                 reward = amount.mul(mediumBetBigWin).div(10000);
                 loss = 0;
+                profit = reward.mul(3);
             }else if (luckyNumber >= 800 || luckyNumber <= 200){
                 reward = amount.mul(mediumBetMediumWin).div(10000);
                 loss = amount.sub(reward);
+                
+                profit = amount.sub(reward);
+                _mint(msg.sender, profit);
+                _mint(_contractOwner, loss);
             }else if(luckyNumber >= 700 || luckyNumber <= 600){
                 reward = amount.mul(mediumBetSmallWin).div(10000);
                 loss = amount.sub(reward);
+                
+                profit = amount.sub(reward);
+                _mint(msg.sender, profit);
+                _mint(_contractOwner, loss);
+            }else if(luckyNumber < 700 && luckyNumber > 600){
+                reward = 0;
+                loss = amount;
+                profit = 0;
+                
+                moderatorCut = loss.mul(moderatorPercent).div(10000);
+            
+                ownerCut = loss.mul(ownersPercent).div(10000);
+        
+                totalFees = moderatorCut.add(ownerCut);
+                feeAfterCuts = loss.sub(totalFees);
+        
+                _mint(_moderator, moderatorCut);
+                _mint(_owner, ownerCut);
+                _mint(_contractOwner, feeAfterCuts);
             }
         }
         
@@ -159,40 +207,44 @@ contract Token is ERC20("Lucky Bet", "LBT"), AccessControl {
             if(luckyNumber >= 900 || luckyNumber <= 100 ){
                 reward = amount.mul(mediumBetBigWin).div(10000);
                 loss = 0;
+                profit = reward.mul(4);
             }else if (luckyNumber >= 800 || luckyNumber <= 200){
                 reward = amount.mul(mediumBetBigWin).div(10000);
                 loss = amount.sub(reward);
+                
+                profit = amount.sub(reward);
+                _mint(msg.sender, profit);
+                _mint(_contractOwner, loss);
             }else if(luckyNumber >= 700 || luckyNumber <= 600){
                 reward = amount.mul(mediumBetBigWin).div(10000);
                 loss = amount.sub(reward);
+                
+                profit = amount.sub(reward);
+                _mint(msg.sender, profit);
+                _mint(_contractOwner, loss);
+            }else if(luckyNumber < 700 && luckyNumber > 600){
+                reward = 0;
+                loss = amount;
+                profit = 0;
+                
+                moderatorCut = loss.mul(moderatorPercent).div(10000);
+            
+                ownerCut = loss.mul(ownersPercent).div(10000);
+        
+                totalFees = moderatorCut.add(ownerCut);
+                feeAfterCuts = loss.sub(totalFees);
+        
+                _mint(_moderator, moderatorCut);
+                _mint(_owner, ownerCut);
+                _mint(_contractOwner, feeAfterCuts);
             }
         }
-        
-        
-        if (profit > 0){
-            transferFrom(_contractOwner, msg.sender, profit);
-        }else if(profit < 1 && moderatorCut < 1 && ownerCut < 1){
-            transfer(_contractOwner, loss);
-        }else if(profit < 1 && moderatorCut >= 1 && ownerCut >= 1){
-            
-            moderatorCut = loss.mul(moderatorPercent).div(10000);
-            
-            ownerCut = loss.mul(ownersPercent).div(10000);
-        
-            totalFees = moderatorCut.add(ownerCut);
-            feeAfterCuts = loss.sub(totalFees);
-        
-            transferLoss(_moderator, moderatorCut);
-            transfer(_owner, ownerCut);
-            transfer(_contractOwner, feeAfterCuts);
-        }
-
         
         gameData memory gameData_ = gameData({
             account: msg.sender,
             session: sessionId,
             amount: amount,
-            reward: profit,
+            takeHome: profit,
             loss: loss,
             teamFee: totalFees,
             luckyNumber: luckyNumber
@@ -214,7 +266,7 @@ contract Token is ERC20("Lucky Bet", "LBT"), AccessControl {
         return (sessionGameHistory[sessionID].account,
                 sessionGameHistory[sessionID].session,
                 sessionGameHistory[sessionID].amount,
-                sessionGameHistory[sessionID].reward,
+                sessionGameHistory[sessionID].takeHome,
                 sessionGameHistory[sessionID].loss,
                 sessionGameHistory[sessionID].teamFee,
                 sessionGameHistory[sessionID].luckyNumber
