@@ -20,27 +20,28 @@ import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contr
 */
 
 
-contract Token is ERC20("Lucky Bet", "LBT"), AccessControl {
+contract LuckyToken is ERC20("Lucky Bet", "LBT"), AccessControl {
     using SafeMath for uint256;
 
     bytes32 private constant SETTER_ROLE = keccak256("SETTER_ROLE");
 
     uint256 public _totalSupply = 5000000000e18; //5,000,000,000
+    uint256 internal _premine = 1000000;
     
-    address internal _moderator = 0x583031D1113aD414F02576BD6afaBfb302140225;
-    address internal _owner = 0xdD870fA1b7C4700F2BD7f44238821C26f7392148;
-    address payable internal _contractOwner;
-    uint256 internal _teamFund = 0;
-    address test = 0xdD870fA1b7C4700F2BD7f44238821C26f7392148;
+    address internal _owner = 0x583031D1113aD414F02576BD6afaBfb302140225;
+    address public teamPayoutAddress = 0xdD870fA1b7C4700F2BD7f44238821C26f7392148;
     
     uint256 moderatorPercent = 100; // 2%
-    uint256 teamPercent = 100; // 1%
-    uint256 ownersPercent = 300; // 3%
+    uint256 projectsPercent = 2000; // 20%
+    uint256 ownersPercent = 3000; // 30%
+    
+    // Jackpot
+    uint256 jackpot777 = 77777; // 777%
     
     // 300 point range
     uint256 smallBetSmallWin = 7000; // 70%
     uint256 smallBetMediumWin = 9000; // 90%
-    uint256 smallBetBigWin = 20000; // 2%
+    uint256 smallBetBigWin = 20000; // 200%
         
     // 200 point range
     uint256 mediumBetSmallWin = 5000; // 50%
@@ -77,18 +78,9 @@ contract Token is ERC20("Lucky Bet", "LBT"), AccessControl {
 
     constructor() public {
         _setupRole(SETTER_ROLE, msg.sender);
-        _contractOwner = msg.sender;
-        _mint(msg.sender, _totalSupply);
+        _mint(msg.sender, _premine);
     }
-    
-    function transferLoss(address account, uint256 amount) internal{
-        transfer(account, amount);
-    }
-    
-    function transferProfit(uint256 amount) internal {
-        _mint(msg.sender, amount);
-        
-    }
+
 
     function getSetterRole() external pure returns (bytes32) {
         return SETTER_ROLE;
@@ -101,7 +93,7 @@ contract Token is ERC20("Lucky Bet", "LBT"), AccessControl {
     function luckyBet(uint256 amount) public payable{
         require(amount >= 2, "Cannot stake less than 2 LBT");
         require(amount <= 100, "Cannot stake more than 100 LBT");
-        _burn(msg.sender, amount);
+        //_burn(msg.sender, amount);
         _sessionsIds = _sessionsIds.add(1);
         
         uint256 sessionId = _sessionsIds;
@@ -110,10 +102,8 @@ contract Token is ERC20("Lucky Bet", "LBT"), AccessControl {
         uint256 totalFees;
         uint256 reward;
         uint256 loss;
-        uint256 profit;
-        uint256 moderatorCut;
-        uint256 ownerCut;
-        //uint256 tokenCut;
+        uint256 ownersCut;
+        uint256 projectsCut;
         uint256 feeAfterCuts;
 
         
@@ -121,40 +111,49 @@ contract Token is ERC20("Lucky Bet", "LBT"), AccessControl {
         //                             Small Bet
         // ------------------------------------------------------------------------
         if(amount >= 2 && amount <= 10){
-            // Small win
-            if(luckyNumber >= 900 || luckyNumber <= 100 ){
+            if(luckyNumber == 777){
+                reward = amount.mul(jackpot777).div(10000);
+                loss = 0;
+                
+                _mint(msg.sender, reward);
+                
+            }else if(luckyNumber >= 900 || luckyNumber <= 100 ){
                 reward = amount.mul(smallBetBigWin).div(10000);
                 loss = 0;
-                profit = reward.mul(2);
+                
+                _mint(msg.sender, reward);
+                
             }else if (luckyNumber >= 800 || luckyNumber <= 200){
                 reward = amount.mul(smallBetMediumWin).div(10000);
                 loss = amount.sub(reward);
                 
-                profit = amount.sub(reward);
-                _mint(msg.sender, profit);
-                _mint(_contractOwner, loss);
+                _burn(msg.sender, loss);
+                
             }else if(luckyNumber >= 700 || luckyNumber <= 600){
                 reward = amount.mul(smallBetSmallWin).div(10000);
                 loss = amount.sub(reward);
                 
-                profit = amount.sub(reward);
-                _mint(msg.sender, profit);
-                _mint(_contractOwner, loss);
+                _burn(msg.sender, loss);
+                
             }else if(luckyNumber < 700 && luckyNumber > 600){
                 reward = 0;
                 loss = amount;
-                profit = 0;
                 
-                moderatorCut = loss.mul(moderatorPercent).div(10000);
-            
-                ownerCut = loss.mul(ownersPercent).div(10000);
+                if (amount < 5){
+                    ownersCut = loss.mul(ownersPercent).div(10000);
+                    projectsCut = loss.mul(projectsPercent).div(10000);
+                    totalFees = ownersCut.add(projectsCut);
+                    feeAfterCuts = loss.sub(totalFees);
+                
+                    transfer(_owner, ownersCut);
+                    transfer(teamPayoutAddress, projectsCut);
+                
+                    _burn(msg.sender, feeAfterCuts);
+                }else {
+                    _burn(msg.sender, loss);
+                }
+
         
-                totalFees = moderatorCut.add(ownerCut);
-                feeAfterCuts = loss.sub(totalFees);
-        
-                _mint(_moderator, moderatorCut);
-                _mint(_owner, ownerCut);
-                _mint(_contractOwner, feeAfterCuts);
             }
         }
         
@@ -162,40 +161,44 @@ contract Token is ERC20("Lucky Bet", "LBT"), AccessControl {
         //                             Medium Bet
         // ------------------------------------------------------------------------
         if(amount >= 11 && amount <= 50){
-            // Small win
-            if(luckyNumber >= 900 || luckyNumber <= 100 ){
+            if(luckyNumber == 777){
+                reward = amount.mul(jackpot777).div(10000);
+                loss = 0;
+                
+                _mint(msg.sender, reward);
+                
+            }else if(luckyNumber >= 900 || luckyNumber <= 100 ){
                 reward = amount.mul(mediumBetBigWin).div(10000);
                 loss = 0;
-                profit = reward.mul(3);
+                
+                _mint(msg.sender, reward);
+                
             }else if (luckyNumber >= 800 || luckyNumber <= 200){
                 reward = amount.mul(mediumBetMediumWin).div(10000);
                 loss = amount.sub(reward);
                 
-                profit = amount.sub(reward);
-                _mint(msg.sender, profit);
-                _mint(_contractOwner, loss);
+                _burn(msg.sender, loss);
+                
             }else if(luckyNumber >= 700 || luckyNumber <= 600){
                 reward = amount.mul(mediumBetSmallWin).div(10000);
                 loss = amount.sub(reward);
                 
-                profit = amount.sub(reward);
-                _mint(msg.sender, profit);
-                _mint(_contractOwner, loss);
+                _burn(msg.sender, loss);
+                
             }else if(luckyNumber < 700 && luckyNumber > 600){
                 reward = 0;
                 loss = amount;
-                profit = 0;
                 
-                moderatorCut = loss.mul(moderatorPercent).div(10000);
-            
-                ownerCut = loss.mul(ownersPercent).div(10000);
-        
-                totalFees = moderatorCut.add(ownerCut);
+                ownersCut = loss.mul(ownersPercent).div(10000);
+                projectsCut = loss.mul(projectsPercent).div(10000);
+                totalFees = ownersCut.add(projectsCut);
                 feeAfterCuts = loss.sub(totalFees);
+                
+                transfer(_owner, ownersCut);
+                transfer(teamPayoutAddress, projectsCut);
+                
+                _burn(msg.sender, feeAfterCuts);
         
-                _mint(_moderator, moderatorCut);
-                _mint(_owner, ownerCut);
-                _mint(_contractOwner, feeAfterCuts);
             }
         }
         
@@ -203,40 +206,44 @@ contract Token is ERC20("Lucky Bet", "LBT"), AccessControl {
         //                             Large Bet
         // ------------------------------------------------------------------------
         if(amount >= 51 && amount <= 100){
-            // Small win
-            if(luckyNumber >= 900 || luckyNumber <= 100 ){
-                reward = amount.mul(mediumBetBigWin).div(10000);
+            if(luckyNumber == 777){
+                reward = amount.mul(jackpot777).div(10000);
                 loss = 0;
-                profit = reward.mul(4);
+                
+                _mint(msg.sender, reward);
+                
+            }else if(luckyNumber >= 900 || luckyNumber <= 100 ){
+                reward = amount.mul(largeBetBigWin).div(10000);
+                loss = 0;
+                
+                _mint(msg.sender, reward);
+                
             }else if (luckyNumber >= 800 || luckyNumber <= 200){
-                reward = amount.mul(mediumBetBigWin).div(10000);
+                reward = amount.mul(largeBetMediumWin).div(10000);
                 loss = amount.sub(reward);
                 
-                profit = amount.sub(reward);
-                _mint(msg.sender, profit);
-                _mint(_contractOwner, loss);
+                _burn(msg.sender, loss);
+                
             }else if(luckyNumber >= 700 || luckyNumber <= 600){
-                reward = amount.mul(mediumBetBigWin).div(10000);
+                reward = amount.mul(largeBetSmallWin).div(10000);
                 loss = amount.sub(reward);
                 
-                profit = amount.sub(reward);
-                _mint(msg.sender, profit);
-                _mint(_contractOwner, loss);
+                _burn(msg.sender, loss);
+                
             }else if(luckyNumber < 700 && luckyNumber > 600){
                 reward = 0;
                 loss = amount;
-                profit = 0;
                 
-                moderatorCut = loss.mul(moderatorPercent).div(10000);
-            
-                ownerCut = loss.mul(ownersPercent).div(10000);
-        
-                totalFees = moderatorCut.add(ownerCut);
+                ownersCut = loss.mul(ownersPercent).div(10000);
+                projectsCut = loss.mul(projectsPercent).div(10000);
+                totalFees = ownersCut.add(projectsCut);
                 feeAfterCuts = loss.sub(totalFees);
+                
+                transfer(_owner, ownersCut);
+                transfer(teamPayoutAddress, projectsCut);
+                
+                _burn(msg.sender, feeAfterCuts);
         
-                _mint(_moderator, moderatorCut);
-                _mint(_owner, ownerCut);
-                _mint(_contractOwner, feeAfterCuts);
             }
         }
         
@@ -244,7 +251,7 @@ contract Token is ERC20("Lucky Bet", "LBT"), AccessControl {
             account: msg.sender,
             session: sessionId,
             amount: amount,
-            takeHome: profit,
+            takeHome: reward,
             loss: loss,
             teamFee: totalFees,
             luckyNumber: luckyNumber
@@ -259,7 +266,7 @@ contract Token is ERC20("Lucky Bet", "LBT"), AccessControl {
         address account, 
         uint256 session, 
         uint256 amount, 
-        uint256 reward,
+        uint256 takeHome,
         uint256 loss,
         uint256 teamFee,
         uint256 luckyNumber){
@@ -285,63 +292,4 @@ contract Token is ERC20("Lucky Bet", "LBT"), AccessControl {
         return (seed - ((seed / 1000) * 1000));
     }
     
-    function percentageOf(uint amount, uint basisPoints) internal pure returns (uint) {
-        return amount.mul(basisPoints).div(10000);
-    }
-        /**
-     * @dev bankersRoundedDiv method that is used to divide and round the result 
-     * (AKA round-half-to-even)
-     *
-     * Bankers Rounding is an algorithm for rounding quantities to integers, 
-     * in which numbers which are equidistant from 
-     * the two nearest integers are rounded to the nearest even integer. 
-     *
-     * Thus, 0.5 rounds down to 0; 1.5 rounds up to 2. 
-     * Other decimal fractions round as you would expect--0.4 to 0, 0.6 to 1, 1.4 to 1, 1.6 to 2, etc. 
-     * Only x.5 numbers get the "special" treatment.
-     * @param a What to divide
-     * @param b Divide by this number
-     */
-    function bankersRoundedDiv(uint256 a, uint256 b) internal pure returns (uint256) {
-        require(b > 0, "div by 0"); 
-
-        uint256 halfB = 0;
-        if ((b % 2) == 1) {
-            halfB = (b / 2) + 1;
-        } else {
-            halfB = b / 2;
-        }
-        bool roundUp = ((a % b) >= halfB);
-
-        // now check if we are in the center!
-        bool isCenter = ((a % b) == (b / 2));
-        bool isDownEven = (((a / b) % 2) == 0);
-
-        // select the rounding type
-        if (isCenter) {
-            // only in this case we rounding either DOWN or UP 
-            // depending on what number is even 
-            roundUp = !isDownEven;
-        }
-
-        // round
-        if (roundUp) {
-            return ((a / b) + 1);
-        }else{
-            return (a / b);
-        }
-    }
-    
-     /**
-     * @dev Division, round to nearest integer (AKA round-half-up)
-     * @param a What to divide
-     * @param b Divide by this number
-     */
-    function roundedDiv(uint256 a, uint256 b) internal pure returns (uint256) {
-        // Solidity automatically throws, but please emit reason
-        require(b > 0, "div by 0"); 
-
-        uint256 halfB = (b % 2 == 0) ? (b / 2) : (b / 2 + 1);
-        return (a % b >= halfB) ? (a / b + 1) : (a / b);
-    }
 }
