@@ -279,6 +279,13 @@
 				"type": "function"
 			},
 			{
+				"inputs": [],
+				"name": "distributeRewards",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
 				"inputs": [
 					{
 						"internalType": "address",
@@ -614,12 +621,12 @@
 			},
 			{
 				"inputs": [],
-				"name": "teamPayoutAddress",
+				"name": "teamFund",
 				"outputs": [
 					{
-						"internalType": "address",
+						"internalType": "uint256",
 						"name": "",
-						"type": "address"
+						"type": "uint256"
 					}
 				],
 				"stateMutability": "view",
@@ -831,11 +838,11 @@
 			]
 		},
 		"localhost/Remix_Testing/contracts/LuckyToken.sol": {
-			"keccak256": "0x02b7b43e08a021cd58fa40e2b02f44bfb7347830970c1126c5ea45a55d3787f1",
+			"keccak256": "0xae391607c17e22733cace60251297ae44fc130840a4795dcf10cca99ffb81718",
 			"license": "MIT",
 			"urls": [
-				"bzz-raw://f69753ec1a0aae6528d2136693e391b8c9b752adf62d8f55c26d3ac794ab38c0",
-				"dweb:/ipfs/QmdxkqxwAkMWGaTaPsgQyo2kSt2Df2xD3aGDkxAex3n7vs"
+				"bzz-raw://34d6ad2ea2d3800a374d66f477078bf70677cbc6d25ba1743b8b9d28281f3471",
+				"dweb:/ipfs/QmbgCnu2YYPBmhuHibuAYwn5TUUnFK1cBCVw6PipaLx51C"
 			]
 		}
 	},

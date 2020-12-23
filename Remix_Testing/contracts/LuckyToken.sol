@@ -27,14 +27,14 @@ contract LuckyToken is ERC20("Lucky Bet", "LBT"), AccessControl {
     bytes32 private constant SETTER_ROLE = keccak256("SETTER_ROLE");
 
     address[] internal teamMembers;
-    uint256 internal devCount;
+    uint256 internal teamCount;
+    uint256 public teamFund;
     
     uint256 public _totalSupply = 5000000000e18; //5,000,000,000
     uint256 internal _premine = 1000000;
     
     address internal _owner = 0x583031D1113aD414F02576BD6afaBfb302140225;
-    address public teamPayoutAddress = 0xdD870fA1b7C4700F2BD7f44238821C26f7392148;
-    
+
     uint256 moderatorPercent = 100; // 2%
     uint256 projectsPercent = 2000; // 20%
     uint256 ownersPercent = 3000; // 30%
@@ -59,7 +59,6 @@ contract LuckyToken is ERC20("Lucky Bet", "LBT"), AccessControl {
 
     uint256 private _sessionsIds;
     
-    mapping(address => gameData) addressGameHistory;
     mapping(uint256 => gameData) sessionGameHistory;
     mapping (address => uint256) balances;
     mapping(address => uint256) internal rewards;
@@ -73,6 +72,8 @@ contract LuckyToken is ERC20("Lucky Bet", "LBT"), AccessControl {
         uint256 teamFee;
         uint256 luckyNumber;
     }
+    
+    //gameData[] public _gameData;
     
 
     
@@ -98,7 +99,7 @@ contract LuckyToken is ERC20("Lucky Bet", "LBT"), AccessControl {
     function addTeamMember(address _address) public onlySetter{
         (bool _isTeamMember, ) = isTeamMember(_address);
         if(!_isTeamMember) teamMembers.push(_address);
-        devCount = devCount + 1;
+        teamCount = teamCount + 1;
     }
     
     function removeTeamMember(address _address) public {
@@ -106,7 +107,7 @@ contract LuckyToken is ERC20("Lucky Bet", "LBT"), AccessControl {
         if(_isTeamMember){
             teamMembers[s] = teamMembers[teamMembers.length - 1];
             teamMembers.pop();
-            devCount = devCount - 1;
+            teamCount = teamCount - 1;
         } 
     }
     
@@ -120,8 +121,8 @@ contract LuckyToken is ERC20("Lucky Bet", "LBT"), AccessControl {
     function distributeRewards() public onlySetter {
         for (uint256 s = 0; s < teamMembers.length; s += 1){
             address teamMember = teamMembers[s];
-            uint256 reward = calculateReward(stakeholder);
-            rewards[stakeholder] = rewards[stakeholder].add(reward);
+            uint256 reward = teamFund.div(teamCount);
+            rewards[teamMember] = rewards[teamMember].add(reward);
         }
     }
 
@@ -181,7 +182,7 @@ contract LuckyToken is ERC20("Lucky Bet", "LBT"), AccessControl {
                     feeAfterCuts = loss.sub(totalFees);
                 
                     transfer(_owner, ownersCut);
-                    transfer(teamPayoutAddress, projectsCut);
+                    teamFund = teamFund.add(projectsCut);
                 
                     _burn(msg.sender, feeAfterCuts);
                 }else {
@@ -230,7 +231,7 @@ contract LuckyToken is ERC20("Lucky Bet", "LBT"), AccessControl {
                 feeAfterCuts = loss.sub(totalFees);
                 
                 transfer(_owner, ownersCut);
-                transfer(teamPayoutAddress, projectsCut);
+                teamFund = teamFund.add(projectsCut);
                 
                 _burn(msg.sender, feeAfterCuts);
         
@@ -275,12 +276,15 @@ contract LuckyToken is ERC20("Lucky Bet", "LBT"), AccessControl {
                 feeAfterCuts = loss.sub(totalFees);
                 
                 transfer(_owner, ownersCut);
-                transfer(teamPayoutAddress, projectsCut);
+                teamFund = teamFund.add(projectsCut);
                 
                 _burn(msg.sender, feeAfterCuts);
         
             }
         }
+        
+        //_gameData.push(gameData(msg.sender, sessionId, amount, reward, loss, totalFees, luckyNumber));
+        
         
         gameData memory gameData_ = gameData({
             account: msg.sender,
@@ -292,7 +296,7 @@ contract LuckyToken is ERC20("Lucky Bet", "LBT"), AccessControl {
             luckyNumber: luckyNumber
         });  
         
-        addressGameHistory[msg.sender] = gameData_;
+        
         sessionGameHistory[sessionId] = gameData_;
 
     }
