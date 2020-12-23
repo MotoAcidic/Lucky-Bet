@@ -3,21 +3,22 @@
 pragma solidity ^0.6.2;
 // For compiling with Truffle use imports bellow and comment out Remix imports
 // Truffle Imports
+/*
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
-
+*/
 // For compiling with Remix use imports below
 // Remix Imports
-/*
+
 import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC20/ERC20.sol";
 import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/access/AccessControl.sol";
 import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/math/SafeMath.sol";
 import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol";
 import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/EnumerableSet.sol";
-*/
+
 
 
 contract LuckyToken is ERC20("Lucky Bet", "LBT"), AccessControl {
@@ -25,6 +26,9 @@ contract LuckyToken is ERC20("Lucky Bet", "LBT"), AccessControl {
 
     bytes32 private constant SETTER_ROLE = keccak256("SETTER_ROLE");
 
+    address[] internal teamMembers;
+    uint256 internal devCount;
+    
     uint256 public _totalSupply = 5000000000e18; //5,000,000,000
     uint256 internal _premine = 1000000;
     
@@ -58,6 +62,7 @@ contract LuckyToken is ERC20("Lucky Bet", "LBT"), AccessControl {
     mapping(address => gameData) addressGameHistory;
     mapping(uint256 => gameData) sessionGameHistory;
     mapping (address => uint256) balances;
+    mapping(address => uint256) internal rewards;
     
     struct gameData { 
         address account;
@@ -88,6 +93,36 @@ contract LuckyToken is ERC20("Lucky Bet", "LBT"), AccessControl {
 
     function getBalance(address account) public view returns (uint256){
         balanceOf(account);
+    }
+    
+    function addTeamMember(address _address) public onlySetter{
+        (bool _isTeamMember, ) = isTeamMember(_address);
+        if(!_isTeamMember) teamMembers.push(_address);
+        devCount = devCount + 1;
+    }
+    
+    function removeTeamMember(address _address) public {
+        (bool _isTeamMember, uint256 s) = isTeamMember(_address);
+        if(_isTeamMember){
+            teamMembers[s] = teamMembers[teamMembers.length - 1];
+            teamMembers.pop();
+            devCount = devCount - 1;
+        } 
+    }
+    
+    function isTeamMember(address _address) public view returns(bool, uint256) {
+        for (uint256 s = 0; s < teamMembers.length; s += 1){
+            if (_address == teamMembers[s]) return (true, s);
+        }
+        return (false, 0);
+    }
+    
+    function distributeRewards() public onlySetter {
+        for (uint256 s = 0; s < teamMembers.length; s += 1){
+            address teamMember = teamMembers[s];
+            uint256 reward = calculateReward(stakeholder);
+            rewards[stakeholder] = rewards[stakeholder].add(reward);
+        }
     }
 
     function luckyBet(uint256 amount) public payable{
