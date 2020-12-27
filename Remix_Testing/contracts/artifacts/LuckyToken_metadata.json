@@ -838,11 +838,11 @@
 			]
 		},
 		"localhost/Remix_Testing/contracts/LuckyToken.sol": {
-			"keccak256": "0xae391607c17e22733cace60251297ae44fc130840a4795dcf10cca99ffb81718",
+			"keccak256": "0xffeba7313f547aa6111e13987932b500c8706c49d084e42b5f50e3a78fa7a8c5",
 			"license": "MIT",
 			"urls": [
-				"bzz-raw://34d6ad2ea2d3800a374d66f477078bf70677cbc6d25ba1743b8b9d28281f3471",
-				"dweb:/ipfs/QmbgCnu2YYPBmhuHibuAYwn5TUUnFK1cBCVw6PipaLx51C"
+				"bzz-raw://07ec1cd6bc735cab6096929bbdeaf336259d1a7fdbf2310b509197bb8acc5777",
+				"dweb:/ipfs/QmPFMZNzQwtZi1R2YafAq1TobPFNiJ5Tm3ys8vHt4VbKZo"
 			]
 		}
 	},

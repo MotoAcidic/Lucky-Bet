@@ -60,6 +60,7 @@ contract LuckyToken is ERC20("Lucky Bet", "LBT"), AccessControl {
     uint256 private _sessionsIds;
     
     mapping(uint256 => gameData) sessionGameHistory;
+    mapping(address => gameData) addressGameHistory;
     mapping (address => uint256) balances;
     mapping(address => uint256) internal rewards;
     
@@ -86,7 +87,6 @@ contract LuckyToken is ERC20("Lucky Bet", "LBT"), AccessControl {
         _setupRole(SETTER_ROLE, msg.sender);
         _mint(msg.sender, _premine);
     }
-
 
     function getSetterRole() external pure returns (bytes32) {
         return SETTER_ROLE;

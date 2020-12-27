@@ -1,32 +1,39 @@
 // SPDX-License-Identifier: MIT
 
 pragma solidity ^0.6.2;
-
+// For compiling with Truffle use imports bellow and comment out Remix imports
+// Truffle Imports
+/*
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+*/
+// For compiling with Remix use imports below
+// Remix Imports
 
-contract Betting is Ownable, ReentrancyGuard, AccessControl {
-  using SafeMath for uint256;
+import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/access/AccessControl.sol";
+import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/math/SafeMath.sol";
+import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/Address.sol";
+import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/EnumerableSet.sol";
 
-  address public luckyBetAddress; 
-    address IERC20;
-  constructor(address _luckyBetAddress) public {
-    luckyBetAddress = _luckyBetAddress;
-  }
-  
-    IERC20 public constant luckyToken = IERC20(0xdD870fA1b7C4700F2BD7f44238821C26f7392148);
+
+
+contract LuckyBet is ERC20("Lucky Bet", "LBT"), AccessControl {
+    using SafeMath for uint256;
 
     bytes32 private constant SETTER_ROLE = keccak256("SETTER_ROLE");
 
+    address[] internal teamMembers;
+    uint256 internal teamCount;
+    uint256 public teamFund;
+    
     uint256 public _totalSupply = 5000000000e18; //5,000,000,000
     uint256 internal _premine = 1000000;
     
     address internal _owner = 0x583031D1113aD414F02576BD6afaBfb302140225;
-    address public teamPayoutAddress = 0xdD870fA1b7C4700F2BD7f44238821C26f7392148;
-    
+
     uint256 moderatorPercent = 100; // 2%
     uint256 projectsPercent = 2000; // 20%
     uint256 ownersPercent = 3000; // 30%
@@ -51,9 +58,10 @@ contract Betting is Ownable, ReentrancyGuard, AccessControl {
 
     uint256 private _sessionsIds;
     
-    mapping(address => gameData) addressGameHistory;
     mapping(uint256 => gameData) sessionGameHistory;
+    mapping(address => gameData) addressGameHistory;
     mapping (address => uint256) balances;
+    mapping(address => uint256) internal rewards;
     
     struct gameData { 
         address account;
@@ -65,16 +73,47 @@ contract Betting is Ownable, ReentrancyGuard, AccessControl {
         uint256 luckyNumber;
     }
     
-
-    
     modifier onlySetter() {
         require(hasRole(SETTER_ROLE, _msgSender()), "Caller is not a setter");
         _;
     }
 
+    constructor() public {
+        _setupRole(SETTER_ROLE, msg.sender);
+    }
 
     function getSetterRole() external pure returns (bytes32) {
         return SETTER_ROLE;
+    }
+    
+    function addTeamMember(address _address) public onlySetter{
+        (bool _isTeamMember, ) = isTeamMember(_address);
+        if(!_isTeamMember) teamMembers.push(_address);
+        teamCount = teamCount + 1;
+    }
+    
+    function removeTeamMember(address _address) public {
+        (bool _isTeamMember, uint256 s) = isTeamMember(_address);
+        if(_isTeamMember){
+            teamMembers[s] = teamMembers[teamMembers.length - 1];
+            teamMembers.pop();
+            teamCount = teamCount - 1;
+        } 
+    }
+    
+    function isTeamMember(address _address) public view returns(bool, uint256) {
+        for (uint256 s = 0; s < teamMembers.length; s += 1){
+            if (_address == teamMembers[s]) return (true, s);
+        }
+        return (false, 0);
+    }
+    
+    function distributeRewards() public onlySetter {
+        for (uint256 s = 0; s < teamMembers.length; s += 1){
+            address teamMember = teamMembers[s];
+            uint256 reward = teamFund.div(teamCount);
+            rewards[teamMember] = rewards[teamMember].add(reward);
+        }
     }
 
     function luckyBet(uint256 amount) public payable{
@@ -102,25 +141,25 @@ contract Betting is Ownable, ReentrancyGuard, AccessControl {
                 reward = amount.mul(jackpot777).div(10000);
                 loss = 0;
                 
-                IERC20._mint(msg.sender, reward);
+                _mint(msg.sender, reward);
                 
             }else if(luckyNumber >= 900 || luckyNumber <= 100 ){
                 reward = amount.mul(smallBetBigWin).div(10000);
                 loss = 0;
                 
-                IERC20._mint(msg.sender, reward);
+                _mint(msg.sender, reward);
                 
             }else if (luckyNumber >= 800 || luckyNumber <= 200){
                 reward = amount.mul(smallBetMediumWin).div(10000);
                 loss = amount.sub(reward);
                 
-                IERC20._burn(msg.sender, loss);
+                _burn(msg.sender, loss);
                 
             }else if(luckyNumber >= 700 || luckyNumber <= 600){
                 reward = amount.mul(smallBetSmallWin).div(10000);
                 loss = amount.sub(reward);
                 
-                IERC20._burn(msg.sender, loss);
+                _burn(msg.sender, loss);
                 
             }else if(luckyNumber < 700 && luckyNumber > 600){
                 reward = 0;
@@ -132,12 +171,12 @@ contract Betting is Ownable, ReentrancyGuard, AccessControl {
                     totalFees = ownersCut.add(projectsCut);
                     feeAfterCuts = loss.sub(totalFees);
                 
-                    IERC20.transfer(_owner, ownersCut);
-                    IERC20.transfer(teamPayoutAddress, projectsCut);
+                    transfer(_owner, ownersCut);
+                    teamFund = teamFund.add(projectsCut);
                 
-                    IERC20._burn(msg.sender, feeAfterCuts);
+                    _burn(msg.sender, feeAfterCuts);
                 }else {
-                    IERC20._burn(msg.sender, loss);
+                    _burn(msg.sender, loss);
                 }
 
         
@@ -152,25 +191,25 @@ contract Betting is Ownable, ReentrancyGuard, AccessControl {
                 reward = amount.mul(jackpot777).div(10000);
                 loss = 0;
                 
-                IERC20._mint(msg.sender, reward);
+                _mint(msg.sender, reward);
                 
             }else if(luckyNumber >= 900 || luckyNumber <= 100 ){
                 reward = amount.mul(mediumBetBigWin).div(10000);
                 loss = 0;
                 
-                IERC20._mint(msg.sender, reward);
+                _mint(msg.sender, reward);
                 
             }else if (luckyNumber >= 800 || luckyNumber <= 200){
                 reward = amount.mul(mediumBetMediumWin).div(10000);
                 loss = amount.sub(reward);
                 
-                IERC20._burn(msg.sender, loss);
+                _burn(msg.sender, loss);
                 
             }else if(luckyNumber >= 700 || luckyNumber <= 600){
                 reward = amount.mul(mediumBetSmallWin).div(10000);
                 loss = amount.sub(reward);
                 
-                IERC20._burn(msg.sender, loss);
+                _burn(msg.sender, loss);
                 
             }else if(luckyNumber < 700 && luckyNumber > 600){
                 reward = 0;
@@ -181,10 +220,10 @@ contract Betting is Ownable, ReentrancyGuard, AccessControl {
                 totalFees = ownersCut.add(projectsCut);
                 feeAfterCuts = loss.sub(totalFees);
                 
-                IERC20.transfer(_owner, ownersCut);
-                IERC20.transfer(teamPayoutAddress, projectsCut);
+                transfer(_owner, ownersCut);
+                teamFund = teamFund.add(projectsCut);
                 
-                IERC20._burn(msg.sender, feeAfterCuts);
+                _burn(msg.sender, feeAfterCuts);
         
             }
         }
@@ -197,25 +236,25 @@ contract Betting is Ownable, ReentrancyGuard, AccessControl {
                 reward = amount.mul(jackpot777).div(10000);
                 loss = 0;
                 
-                IERC20._mint(msg.sender, reward);
+                _mint(msg.sender, reward);
                 
             }else if(luckyNumber >= 900 || luckyNumber <= 100 ){
                 reward = amount.mul(largeBetBigWin).div(10000);
                 loss = 0;
                 
-                IERC20._mint(msg.sender, reward);
+                _mint(msg.sender, reward);
                 
             }else if (luckyNumber >= 800 || luckyNumber <= 200){
                 reward = amount.mul(largeBetMediumWin).div(10000);
                 loss = amount.sub(reward);
                 
-                IERC20._burn(msg.sender, loss);
+                _burn(msg.sender, loss);
                 
             }else if(luckyNumber >= 700 || luckyNumber <= 600){
                 reward = amount.mul(largeBetSmallWin).div(10000);
                 loss = amount.sub(reward);
                 
-                IERC20._burn(msg.sender, loss);
+                _burn(msg.sender, loss);
                 
             }else if(luckyNumber < 700 && luckyNumber > 600){
                 reward = 0;
@@ -226,13 +265,16 @@ contract Betting is Ownable, ReentrancyGuard, AccessControl {
                 totalFees = ownersCut.add(projectsCut);
                 feeAfterCuts = loss.sub(totalFees);
                 
-                IERC20.transfer(_owner, ownersCut);
-                IERC20.transfer(teamPayoutAddress, projectsCut);
+                transfer(_owner, ownersCut);
+                teamFund = teamFund.add(projectsCut);
                 
-                IERC20._burn(msg.sender, feeAfterCuts);
+                _burn(msg.sender, feeAfterCuts);
         
             }
         }
+        
+        //_gameData.push(gameData(msg.sender, sessionId, amount, reward, loss, totalFees, luckyNumber));
+        
         
         gameData memory gameData_ = gameData({
             account: msg.sender,
@@ -244,12 +286,12 @@ contract Betting is Ownable, ReentrancyGuard, AccessControl {
             luckyNumber: luckyNumber
         });  
         
-        addressGameHistory[msg.sender] = gameData_;
+        
         sessionGameHistory[sessionId] = gameData_;
 
     }
     
-function returnSessionInfo(uint256 sessionID) public view returns (
+    function returnSessionInfo(uint256 sessionID) public view returns (
         address account, 
         uint256 session, 
         uint256 amount, 
@@ -278,5 +320,5 @@ function returnSessionInfo(uint256 sessionID) public view returns (
 
         return (seed - ((seed / 1000) * 1000));
     }
-
+    
 }
